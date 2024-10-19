@@ -98,3 +98,9 @@ print(Fore.WHITE + "\n--> Encoding data")
 encoded = base64.urlsafe_b64encode(compressed).decode().rstrip("=")
 
 print(Fore.WHITE + "\n\n--> Your locker: " + Fore.LIGHTGREEN_EX + f"https://fortnite.gg/my-locker?items={encoded}" + Fore.WHITE)
+
+f = open("locker.txt", "w", encoding="utf-8")
+f.write(f"https://fortnite.gg/my-locker?items={encoded}")
+f.close()
+
+input()
