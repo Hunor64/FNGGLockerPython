@@ -6,6 +6,8 @@ from colored import fg
 
 from helpers import *
 
+zold=fg('green')
+
 # setting acceptable cosmetic types
 ACCEPTED_COSMETIC_TYPES = [
     "AthenaCharacter",
