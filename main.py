@@ -43,16 +43,17 @@ AUTH_CODE = input(Fore.WHITE + "--> Paste it here: " + Fore.LIGHTYELLOW_EX)
 TOKEN_DATA = GenerateBearerToken(AUTH_CODE)
 
 class User:
+    AccountId = TOKEN_DATA["account_id"]
     UserName = TOKEN_DATA["displayName"]
     AccessToken = TOKEN_DATA["access_token"]
 
 print(Fore.WHITE + f"\n--> Username: " + Fore.LIGHTBLUE_EX + User.UserName)
 
 print(Fore.WHITE + "\n--> Requesting" + Fore.LIGHTMAGENTA_EX + " athena profile " + Fore.WHITE + "of " + Fore.LIGHTBLUE_EX + User.UserName)
-JSONDATA = QueryProfile("athena", User.AccessToken)
+JSONDATA = QueryProfile(User.AccountId, "athena", User.AccessToken)
 
 print(Fore.WHITE + "--> Requesting" + Fore.LIGHTMAGENTA_EX + " common_core profile " + Fore.WHITE + "of " + Fore.LIGHTBLUE_EX + User.UserName)
-JSONDATA_CC = QueryProfile("common_core", User.AccessToken)
+JSONDATA_CC = QueryProfile(User.AccountId, "common_core", User.AccessToken)
 
 # getting the items from profile as objects
 print(Fore.WHITE + "\n--> Processing data")

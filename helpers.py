@@ -15,8 +15,8 @@ def GenerateBearerToken(authorization_code: str) -> object:
 
     return response.json()
 
-def QueryProfile(profileId: str, bearer: str) -> object:
-    reqUrl = f"https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/0678d8480dc64181bb838f5aeed19740/client/QueryProfile?profileId={profileId}"
+def QueryProfile(accountId: str, profileId: str, bearer: str) -> object:
+    reqUrl = f"https://fortnite-public-service-prod11.ol.epicgames.com/fortnite/api/game/v2/profile/{accountId}/client/QueryProfile?profileId={profileId}"
 
     headersList = {
         "Authorization": f"bearer {bearer}",
