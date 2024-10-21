@@ -1,8 +1,10 @@
 import zlib
 import base64
+import aiohttp
 import requests
-from colorama import Fore
+import webbrowser
 from colored import fg
+from colorama import Fore
 
 from helpers import *
 
@@ -37,77 +39,92 @@ ACCEPTED_COSMETIC_TYPES = [
     "JunoBuildingSet"
 ]
 
-print(Fore.WHITE + "--> Login to your account on" + Fore.LIGHTGREEN_EX + " https://www.epicgames.com " + Fore.WHITE + "and open this site (" + Fore.LIGHTGREEN_EX + "https://www.epicgames.com/id/api/redirect?clientId=ec684b8c687f479fadea3cb2ad83f5c6&responseType=code" + Fore.WHITE + "), then copy the value of " + Fore.LIGHTYELLOW_EX + "'authorization_code'")
-AUTH_CODE = input(Fore.WHITE + "--> Paste it here: " + Fore.LIGHTYELLOW_EX)
-
-TOKEN_DATA = GenerateBearerToken(AUTH_CODE)
-
 class User:
-    AccountId = TOKEN_DATA["account_id"]
-    UserName = TOKEN_DATA["displayName"]
-    AccessToken = TOKEN_DATA["access_token"]
+    AccountId = ""
+    UserName = ""
+    AccessToken = ""
 
-print(Fore.WHITE + f"\n--> Username: " + Fore.LIGHTBLUE_EX + User.UserName)
+async def main():
+    # Start the authentication process
+    async with aiohttp.ClientSession() as http_session:
+        access_token = await getAccessToken(http_session)
 
-print(Fore.WHITE + "\n--> Requesting" + Fore.LIGHTMAGENTA_EX + " athena profile " + Fore.WHITE + "of " + Fore.LIGHTBLUE_EX + User.UserName)
-JSONDATA = QueryProfile(User.AccountId, "athena", User.AccessToken)
+        # Create device code
+        device_url, device_code = await createDeviceCode(http_session, access_token)
+        webbrowser.open(device_url, new=1)
+        print(Fore.WHITE + "--> Please log in to your account on the opened page (or visit this link): " + Fore.LIGHTGREEN_EX + device_url)
 
-print(Fore.WHITE + "--> Requesting" + Fore.LIGHTMAGENTA_EX + " common_core profile " + Fore.WHITE + "of " + Fore.LIGHTBLUE_EX + User.UserName)
-JSONDATA_CC = QueryProfile(User.AccountId, "common_core", User.AccessToken)
+        # Wait for device code completion
+        auth_data = await waitForDeviceCodeComplete(http_session, device_code)
 
-with open(getJsonPath("offergrants.json"), 'r') as json_file:
-    PACKSDATA = json.load(json_file)
+    # Update User class with new data
+    User.AccountId = auth_data["account_id"]
+    User.UserName = auth_data["displayName"]
+    User.AccessToken = auth_data["access_token"]
 
-# getting the items from profile as objects
-print(Fore.WHITE + "\n--> Processing data")
-PROFILE_ITEMS = [JSONDATA['profileChanges'][0]['profile']['items'][i] for i in JSONDATA['profileChanges'][0]['profile']['items'].keys()]
-PROFILE_ITEMS_CC = [JSONDATA_CC['profileChanges'][0]['profile']['items'][i] for i in JSONDATA_CC['profileChanges'][0]['profile']['items'].keys()]
+    print(Fore.WHITE + f"\n--> Username: " + Fore.LIGHTBLUE_EX + User.UserName)
 
-# filtering items based on the ACCEPTED_COSMETIC_TYPES
-filteredItems = list(filter(lambda x: x['templateId'].split(":")[0] in ACCEPTED_COSMETIC_TYPES, PROFILE_ITEMS))
-filteredItems_cc = list(filter(lambda x: x['templateId'].split(":")[0] in ACCEPTED_COSMETIC_TYPES, PROFILE_ITEMS_CC))
+    print(Fore.WHITE + "\n--> Requesting" + Fore.LIGHTMAGENTA_EX + " athena profile " + Fore.WHITE + "of " + Fore.LIGHTBLUE_EX + User.UserName)
+    JSONDATA = QueryProfile(User.AccountId, "athena", User.AccessToken)
 
-# cosmetic names from the objects
-cosmeticsNames = [i['templateId'].split(":")[1].lower() for i in filteredItems]
-banners = [i['templateId'].split(":")[1].lower() for i in filteredItems_cc]
-packs = list(set([PACKSDATA[i] for i in PACKSDATA.keys() if i in cosmeticsNames]))
+    print(Fore.WHITE + "--> Requesting" + Fore.LIGHTMAGENTA_EX + " common_core profile " + Fore.WHITE + "of " + Fore.LIGHTBLUE_EX + User.UserName)
+    JSONDATA_CC = QueryProfile(User.AccountId, "common_core", User.AccessToken)
 
-cosmeticsNames += banners
+    with open(getJsonPath("offergrants.json"), 'r') as json_file:
+        PACKSDATA = json.load(json_file)
 
-# ----- WORKING WITH THE PREPARED DATA -----
+    # getting the items from profile as objects
+    print(Fore.WHITE + "\n--> Processing data")
+    PROFILE_ITEMS = [JSONDATA['profileChanges'][0]['profile']['items'][i] for i in JSONDATA['profileChanges'][0]['profile']['items'].keys()]
+    PROFILE_ITEMS_CC = [JSONDATA_CC['profileChanges'][0]['profile']['items'][i] for i in JSONDATA_CC['profileChanges'][0]['profile']['items'].keys()]
 
-# requesting fngg ids
-print(Fore.WHITE + "\n--> Requesting data from " + Fore.LIGHTGREEN_EX + "https://fortnite.gg")
-fnggDataRequest = requests.get("https://fortnite.gg/api/items.json").json()
+    # filtering items based on the ACCEPTED_COSMETIC_TYPES
+    filteredItems = list(filter(lambda x: x['templateId'].split(":")[0] in ACCEPTED_COSMETIC_TYPES, PROFILE_ITEMS))
+    filteredItems_cc = list(filter(lambda x: x['templateId'].split(":")[0] in ACCEPTED_COSMETIC_TYPES, PROFILE_ITEMS_CC))
 
-print(Fore.WHITE + "\n--> Processing data")
-FNGG_DATA = {i.lower(): int(fnggDataRequest[i]) for i in fnggDataRequest.keys()}
-ATHENA_CREATION_DATE = JSONDATA['profileChanges'][0]['profile']['created']
+    # cosmetic names from the objects
+    cosmeticsNames = [i['templateId'].split(":")[1].lower() for i in filteredItems]
+    banners = [i['templateId'].split(":")[1].lower() for i in filteredItems_cc]
+    packs = list(set([PACKSDATA[i] for i in PACKSDATA.keys() if i in cosmeticsNames]))
 
-# getting the fngg ids of the items
-ints = sorted([FNGG_DATA[it] for it in cosmeticsNames if it in FNGG_DATA] + packs)
+    cosmeticsNames += banners
 
-# compress data
-diff = list(map(lambda e: str(e[1] - ints[e[0] - 1]) if e[0] > 0 else str(e[1]), enumerate(ints)))
+    # ----- WORKING WITH THE PREPARED DATA -----
 
-compress = zlib.compressobj(
-    level=-1, 
-    method=zlib.DEFLATED, 
-    wbits=-9,
-    memLevel=zlib.DEF_MEM_LEVEL, 
-    strategy=zlib.Z_DEFAULT_STRATEGY
-)
-compressed = compress.compress(f"{ATHENA_CREATION_DATE},{','.join(diff)}".encode())
-compressed += compress.flush()
+    # requesting fngg ids
+    print(Fore.WHITE + "\n--> Requesting data from " + Fore.LIGHTGREEN_EX + "https://fortnite.gg")
+    fnggDataRequest = requests.get("https://fortnite.gg/api/items.json").json()
 
-# encoding the compressed data to base64
-print(Fore.WHITE + "\n--> Encoding data")
-encoded = base64.urlsafe_b64encode(compressed).decode().rstrip("=")
+    print(Fore.WHITE + "\n--> Processing data")
+    FNGG_DATA = {i.lower(): int(fnggDataRequest[i]) for i in fnggDataRequest.keys()}
+    ATHENA_CREATION_DATE = JSONDATA['profileChanges'][0]['profile']['created']
 
-print(Fore.WHITE + "\n\n--> Your locker: " + Fore.LIGHTGREEN_EX + f"https://fortnite.gg/my-locker?items={encoded}" + Fore.WHITE)
+    # getting the fngg ids of the items
+    ints = sorted([FNGG_DATA[it] for it in cosmeticsNames if it in FNGG_DATA] + packs)
 
-f = open("locker.txt", "w", encoding="utf-8")
-f.write(f"https://fortnite.gg/my-locker?items={encoded}")
-f.close()
+    # compress data
+    diff = list(map(lambda e: str(e[1] - ints[e[0] - 1]) if e[0] > 0 else str(e[1]), enumerate(ints)))
 
-input()
+    compress = zlib.compressobj(
+        level=-1, 
+        method=zlib.DEFLATED, 
+        wbits=-9,
+        memLevel=zlib.DEF_MEM_LEVEL, 
+        strategy=zlib.Z_DEFAULT_STRATEGY
+    )
+    compressed = compress.compress(f"{ATHENA_CREATION_DATE},{','.join(diff)}".encode())
+    compressed += compress.flush()
+
+    # encoding the compressed data to base64
+    print(Fore.WHITE + "\n--> Encoding data")
+    encoded = base64.urlsafe_b64encode(compressed).decode().rstrip("=")
+
+    print(Fore.WHITE + "\n\n--> Your locker: " + Fore.LIGHTGREEN_EX + f"https://fortnite.gg/my-locker?items={encoded}" + Fore.WHITE)
+
+    with open("locker.txt", "w", encoding="utf-8") as f:
+        f.write(f"https://fortnite.gg/my-locker?items={encoded}")
+
+    input()
+
+if __name__ == "__main__":
+    asyncio.run(main())
