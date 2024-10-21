@@ -10,8 +10,12 @@ Generate your locker on [Fortnite.GG](https://fortnite.gg) from your athena and 
 
 ## Features
 
-Supports all cosmetic types, including Battle Royale, Festival, Racing, and LEGO items.
+Supports all cosmetic types, including:
+- Battle Royale
+- Festival, 
+- Rocket Racing
+- LEGO
 
-## Known issues
+Also includes support for:
 
-Currently, bundles are not supported.
+- Real-Money Bundles
