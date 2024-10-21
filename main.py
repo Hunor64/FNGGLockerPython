@@ -55,6 +55,9 @@ JSONDATA = QueryProfile(User.AccountId, "athena", User.AccessToken)
 print(Fore.WHITE + "--> Requesting" + Fore.LIGHTMAGENTA_EX + " common_core profile " + Fore.WHITE + "of " + Fore.LIGHTBLUE_EX + User.UserName)
 JSONDATA_CC = QueryProfile(User.AccountId, "common_core", User.AccessToken)
 
+with open(getJsonPath("offergrants.json"), 'r') as json_file:
+    PACKSDATA = json.load(json_file)
+
 # getting the items from profile as objects
 print(Fore.WHITE + "\n--> Processing data")
 PROFILE_ITEMS = [JSONDATA['profileChanges'][0]['profile']['items'][i] for i in JSONDATA['profileChanges'][0]['profile']['items'].keys()]
@@ -67,6 +70,7 @@ filteredItems_cc = list(filter(lambda x: x['templateId'].split(":")[0] in ACCEPT
 # cosmetic names from the objects
 cosmeticsNames = [i['templateId'].split(":")[1].lower() for i in filteredItems]
 banners = [i['templateId'].split(":")[1].lower() for i in filteredItems_cc]
+packs = list(set([PACKSDATA[i] for i in PACKSDATA.keys() if i in cosmeticsNames]))
 
 cosmeticsNames += banners
 
@@ -81,7 +85,7 @@ FNGG_DATA = {i.lower(): int(fnggDataRequest[i]) for i in fnggDataRequest.keys()}
 ATHENA_CREATION_DATE = JSONDATA['profileChanges'][0]['profile']['created']
 
 # getting the fngg ids of the items
-ints = sorted([FNGG_DATA[it] for it in cosmeticsNames if it in FNGG_DATA])
+ints = sorted([FNGG_DATA[it] for it in cosmeticsNames if it in FNGG_DATA] + packs)
 
 # compress data
 diff = list(map(lambda e: str(e[1] - ints[e[0] - 1]) if e[0] > 0 else str(e[1]), enumerate(ints)))

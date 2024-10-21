@@ -1,3 +1,5 @@
+import os
+import sys
 import json
 import requests
 
@@ -28,3 +30,9 @@ def QueryProfile(accountId: str, profileId: str, bearer: str) -> object:
     response = requests.post(reqUrl, data=payload,  headers=headersList)
 
     return response.json()
+
+def getJsonPath(filename):
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, filename)
+
+    return os.path.join(os.path.dirname(__file__), filename)

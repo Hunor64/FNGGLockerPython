@@ -1,5 +1,6 @@
 /build
 /dist
+/packs
 icon.ico
 main.spec
 FNGGLockerGenerator.spec
