@@ -12,7 +12,7 @@ Generate your locker on [Fortnite.GG](https://fortnite.gg) from your athena and 
 
 Supports all cosmetic types, including:
 - Battle Royale
-- Festival, 
+- Festival
 - Rocket Racing
 - LEGO
 
