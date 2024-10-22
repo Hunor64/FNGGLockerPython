@@ -51,8 +51,8 @@ async def main():
 
         # Create device code
         device_url, device_code = await createDeviceCode(http_session, access_token)
-        webbrowser.open(device_url, new=1)
-        print(Fore.WHITE + "--> Please log in to your account on the opened page (or visit this link): " + Fore.LIGHTGREEN_EX + device_url)
+        #webbrowser.open(device_url, new=1)
+        print(Fore.WHITE + "--> Please log in to your account by opening this link: " + Fore.LIGHTGREEN_EX + device_url)
 
         # Wait for device code completion
         auth_data = await waitForDeviceCodeComplete(http_session, device_code)
@@ -64,12 +64,15 @@ async def main():
 
     print(Fore.WHITE + f"\n--> Username: " + Fore.LIGHTBLUE_EX + User.UserName)
 
+    # Requesting athena
     print(Fore.WHITE + "\n--> Requesting" + Fore.LIGHTMAGENTA_EX + " athena profile " + Fore.WHITE + "of " + Fore.LIGHTBLUE_EX + User.UserName)
     JSONDATA = QueryProfile(User.AccountId, "athena", User.AccessToken)
 
+    # Requesting common_core
     print(Fore.WHITE + "--> Requesting" + Fore.LIGHTMAGENTA_EX + " common_core profile " + Fore.WHITE + "of " + Fore.LIGHTBLUE_EX + User.UserName)
     JSONDATA_CC = QueryProfile(User.AccountId, "common_core", User.AccessToken)
 
+    # RMT packs
     with open(getJsonPath("offergrants.json"), 'r') as json_file:
         PACKSDATA = json.load(json_file)
 
@@ -94,13 +97,19 @@ async def main():
     # requesting fngg ids
     print(Fore.WHITE + "\n--> Requesting data from " + Fore.LIGHTGREEN_EX + "https://fortnite.gg")
     fnggDataRequest = requests.get("https://fortnite.gg/api/items.json").json()
+    fnggBundleData = requests.get("https://fortnite.gg/api/bundles.json").json()
 
     print(Fore.WHITE + "\n--> Processing data")
     FNGG_DATA = {i.lower(): int(fnggDataRequest[i]) for i in fnggDataRequest.keys()}
     ATHENA_CREATION_DATE = JSONDATA['profileChanges'][0]['profile']['created']
 
+    ownedBundles = list(set([CheckBundle(i, fnggBundleData[i], cosmeticsNames, FNGG_DATA) for i in fnggBundleData.keys()]))
+    print(ownedBundles)
+
     # getting the fngg ids of the items
-    ints = sorted([FNGG_DATA[it] for it in cosmeticsNames if it in FNGG_DATA] + packs)
+    #ints = sorted([FNGG_DATA[it] for it in cosmeticsNames if it in FNGG_DATA] + packs + ownedBundles)
+    ints = sorted([i for i in ([FNGG_DATA[it] for it in cosmeticsNames if it in FNGG_DATA] + packs + ownedBundles) if i is not None])
+
 
     # compress data
     diff = list(map(lambda e: str(e[1] - ints[e[0] - 1]) if e[0] > 0 else str(e[1]), enumerate(ints)))
