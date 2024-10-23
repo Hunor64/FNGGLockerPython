@@ -104,10 +104,9 @@ async def main():
     ATHENA_CREATION_DATE = JSONDATA['profileChanges'][0]['profile']['created']
 
     ownedBundles = list(set([CheckBundle(i, fnggBundleData[i], cosmeticsNames, FNGG_DATA) for i in fnggBundleData.keys()]))
-    print(ownedBundles)
+    ownedBundles = list(filter(lambda x: x is not None, ownedBundles))
 
     # getting the fngg ids of the items
-    #ints = sorted([FNGG_DATA[it] for it in cosmeticsNames if it in FNGG_DATA] + packs + ownedBundles)
     ints = sorted([i for i in ([FNGG_DATA[it] for it in cosmeticsNames if it in FNGG_DATA] + packs + ownedBundles) if i is not None])
 
 

@@ -11,6 +11,7 @@ Generate your locker on [Fortnite.GG](https://fortnite.gg) from your athena and 
 ## Features
 
 Supports all cosmetic types, including:
+
 - Battle Royale
 - Festival
 - Rocket Racing
@@ -19,3 +20,8 @@ Supports all cosmetic types, including:
 Also includes support for:
 
 - Real-Money Bundles
+- Dynamic (V-Bucks) Bundles
+
+## Known Issues
+
+- Built-in Emotes are not added
