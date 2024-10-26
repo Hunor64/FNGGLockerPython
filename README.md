@@ -22,3 +22,4 @@ Also includes support for:
 - Real-Money Bundles
 - Dynamic (V-Bucks) Bundles
 - Built-in Emotes
+- Banners
