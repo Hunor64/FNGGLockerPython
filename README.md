@@ -21,7 +21,4 @@ Also includes support for:
 
 - Real-Money Bundles
 - Dynamic (V-Bucks) Bundles
-
-## Known Issues
-
-- Built-in Emotes are not added
+- Built-in Emotes

@@ -76,6 +76,10 @@ async def main():
     with open(getJsonPath("offergrants.json"), 'r') as json_file:
         PACKSDATA = json.load(json_file)
 
+    # Built-in emotes
+    with open(getJsonPath("builtinemotes.json"), 'r') as json_file:
+        BUILTINS = json.load(json_file)
+
     # getting the items from profile as objects
     print(Fore.WHITE + "\n--> Processing data")
     PROFILE_ITEMS = [JSONDATA['profileChanges'][0]['profile']['items'][i] for i in JSONDATA['profileChanges'][0]['profile']['items'].keys()]
@@ -87,10 +91,13 @@ async def main():
 
     # cosmetic names from the objects
     cosmeticsNames = [i['templateId'].split(":")[1].lower() for i in filteredItems]
+    builtIns = list(set([BUILTINS[i].lower() for i in BUILTINS.keys() if i.lower() in cosmeticsNames]))
     banners = [i['templateId'].split(":")[1].lower() for i in filteredItems_cc]
+
     packs = list(set([PACKSDATA[i] for i in PACKSDATA.keys() if i in cosmeticsNames]))
 
     cosmeticsNames += banners
+    cosmeticsNames += builtIns
 
     # ----- WORKING WITH THE PREPARED DATA -----
 
@@ -109,8 +116,8 @@ async def main():
     # getting the fngg ids of the items
     ints = sorted([i for i in ([FNGG_DATA[it] for it in cosmeticsNames if it in FNGG_DATA] + packs + ownedBundles) if i is not None])
 
+    # ----- COMPRESSING DATA -----
 
-    # compress data
     diff = list(map(lambda e: str(e[1] - ints[e[0] - 1]) if e[0] > 0 else str(e[1]), enumerate(ints)))
 
     compress = zlib.compressobj(

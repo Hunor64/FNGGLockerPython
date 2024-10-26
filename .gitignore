@@ -2,8 +2,10 @@
 /build
 /dist
 /packs
+/builtinemotes
 icon.ico
 main.spec
 offergrants.json
+builtinemotes.json
 FNGGLockerGenerator.spec
 locker.txt
