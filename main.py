@@ -73,12 +73,20 @@ async def main():
     JSONDATA_CC = QueryProfile(User.AccountId, "common_core", User.AccessToken)
 
     # RMT packs
-    with open(getJsonPath("offergrants.json"), 'r') as json_file:
-        PACKSDATA = json.load(json_file)
+    packsDataReq = requests.get("https://api.fecooo.hu/fngg/offers")
+    if packsDataReq.status_code == 200:
+        PACKSDATA = packsDataReq.json()
+    else:
+        with open(getJsonPath("offergrants.json"), 'r') as json_file:
+            PACKSDATA = json.load(json_file)
 
     # Built-in emotes
-    with open(getJsonPath("builtinemotes.json"), 'r') as json_file:
-        BUILTINS = json.load(json_file)
+    builtinsDataReq = requests.get("https://api.fecooo.hu/fngg/builtins")
+    if builtinsDataReq.status_code == 200:
+        BUILTINS = builtinsDataReq.json()
+    else:
+        with open(getJsonPath("builtinemotes.json"), 'r') as json_file:
+            BUILTINS = json.load(json_file)
 
     # getting the items from profile as objects
     print(Fore.WHITE + "\n--> Processing data")
