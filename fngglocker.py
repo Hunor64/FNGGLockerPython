@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import asyncio
+import threading
 import zlib
 import base64
 import aiohttp
@@ -137,8 +138,15 @@ async def waitForDeviceCodeComplete(http_session, code) -> dict:
 
 def open_link(url):
     webbrowser.open(url, new=1)
-
 def start_app():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    def run_loop():
+        loop.run_forever()
+
+    threading.Thread(target=run_loop, daemon=True).start()
+
     root = tk.Tk()
     root.title("FNGG Locker")
 
@@ -226,8 +234,9 @@ def start_app():
         with open("locker.txt", "w", encoding="utf-8") as f:
             f.write(locker_url)
 
-    tk.Button(root, text="Start Authentication", command=lambda: root.after(0, asyncio.run, authenticate())).pack(pady=20)
+    tk.Button(root, text="Start Authentication", command=lambda: asyncio.run_coroutine_threadsafe(authenticate(), loop)).pack(pady=20)
 
+    root.mainloop()
     root.mainloop()
 
 if __name__ == "__main__":
