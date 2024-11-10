@@ -2,8 +2,9 @@ from setuptools import setup, find_packages
 
 APP = ['fngglocker.py']
 OPTIONS = {
-    'argv_emulation': False,
-    'packages': ['requests', 'aiohttp', 'asyncio'],
+    'argv_emulation': True,
+    'packages': ['ctypes'],
+    # 'frameworks': ['/System/Library/Frameworks/Carbon.framework'],
 }
 
 setup(
@@ -13,16 +14,4 @@ setup(
     name='FNGGLocker',
     version='2.0',
     packages=find_packages(),
-    install_requires=[
-        'aiohttp',
-        'colored',
-        'colorama',
-        'requests',
-        'asyncio',
-    ],
-    entry_points={
-        'console_scripts': [
-            'fngglocker=fngglocker:main',
-        ],
-    },
 )
