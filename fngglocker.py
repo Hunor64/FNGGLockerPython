@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 import os
 import sys
 import json
@@ -6,7 +5,14 @@ import asyncio
 import zlib
 import base64
 import aiohttp
+import requests
 import webbrowser
+import tkinter as tk
+from tkinter import messagebox
+from colored import fg
+from colorama import Fore
+
+zold = fg('green')
 
 # setting acceptable cosmetic types
 ACCEPTED_COSMETIC_TYPES = [
@@ -129,109 +135,100 @@ async def waitForDeviceCodeComplete(http_session, code) -> dict:
 
     return auth_data
 
-async def main():
-    # Start the authentication process
-    async with aiohttp.ClientSession() as http_session:
-        access_token = await getAccessToken(http_session)
+def open_link(url):
+    webbrowser.open(url, new=1)
 
-        # Create device code
-        device_url, device_code = await createDeviceCode(http_session, access_token)
-        print("--> Please log in to your account by opening this link: " + device_url)
+def start_app():
+    root = tk.Tk()
+    root.title("FNGG Locker")
 
-        # Wait for device code completion
-        auth_data = await waitForDeviceCodeComplete(http_session, device_code)
+    tk.Label(root, text="FNGG Locker", font=("Helvetica", 16)).pack(pady=10)
 
-    # Update User class with new data
-    User.AccountId = auth_data["account_id"]
-    User.UserName = auth_data["displayName"]
-    User.AccessToken = auth_data["access_token"]
+    async def authenticate():
+        async with aiohttp.ClientSession() as http_session:
+            access_token = await getAccessToken(http_session)
+            device_url, device_code = await createDeviceCode(http_session, access_token)
+            tk.Label(root, text="Please log in to your account by clicking this link:", font=("Helvetica", 12)).pack(pady=5)
+            link = tk.Label(root, text=device_url, font=("Helvetica", 12), fg="blue", cursor="hand2")
+            link.pack(pady=5)
+            link.bind("<Button-1>", lambda _: open_link(device_url))
+            auth_data = await waitForDeviceCodeComplete(http_session, device_code)
 
-    print(f"\n--> Username: " + User.UserName)
+        User.AccountId = auth_data["account_id"]
+        User.UserName = auth_data["displayName"]
+        User.AccessToken = auth_data["access_token"]
 
-    # Requesting athena
-    print("\n--> Requesting athena profile of " + User.UserName)
-    JSONDATA = QueryProfile(User.AccountId, "athena", User.AccessToken)
+        tk.Label(root, text=f"Username: {User.UserName}", font=("Helvetica", 12)).pack(pady=5)
 
-    # Requesting common_core
-    print("--> Requesting common_core profile of " + User.UserName)
-    JSONDATA_CC = QueryProfile(User.AccountId, "common_core", User.AccessToken)
+        JSONDATA = QueryProfile(User.AccountId, "athena", User.AccessToken)
+        JSONDATA_CC = QueryProfile(User.AccountId, "common_core", User.AccessToken)
 
-    # RMT packs
-    packsDataReq = requests.get("https://api.fecooo.hu/fngg/offers")
-    if packsDataReq.status_code == 200:
-        PACKSDATA = packsDataReq.json()
-    else:
-        with open(getJsonPath("offergrants.json"), 'r') as json_file:
-            PACKSDATA = json.load(json_file)
+        packsDataReq = requests.get("https://api.fecooo.hu/fngg/offers")
+        if packsDataReq.status_code == 200:
+            PACKSDATA = packsDataReq.json()
+        else:
+            with open(getJsonPath("offergrants.json"), 'r') as json_file:
+                PACKSDATA = json.load(json_file)
 
-    # Built-in emotes
-    builtinsDataReq = requests.get("https://api.fecooo.hu/fngg/builtins")
-    if builtinsDataReq.status_code == 200:
-        BUILTINS = builtinsDataReq.json()
-    else:
-        with open(getJsonPath("builtinemotes.json"), 'r') as json_file:
-            BUILTINS = json.load(json_file)
+        builtinsDataReq = requests.get("https://api.fecooo.hu/fngg/builtins")
+        if builtinsDataReq.status_code == 200:
+            BUILTINS = builtinsDataReq.json()
+        else:
+            with open(getJsonPath("builtinemotes.json"), 'r') as json_file:
+                BUILTINS = json.load(json_file)
 
-    # getting the items from profile as objects
-    print("\n--> Processing data")
-    PROFILE_ITEMS = [JSONDATA['profileChanges'][0]['profile']['items'][i] for i in JSONDATA['profileChanges'][0]['profile']['items'].keys()]
-    PROFILE_ITEMS_CC = [JSONDATA_CC['profileChanges'][0]['profile']['items'][i] for i in JSONDATA_CC['profileChanges'][0]['profile']['items'].keys()]
+        PROFILE_ITEMS = [JSONDATA['profileChanges'][0]['profile']['items'][i] for i in JSONDATA['profileChanges'][0]['profile']['items'].keys()]
+        PROFILE_ITEMS_CC = [JSONDATA_CC['profileChanges'][0]['profile']['items'][i] for i in JSONDATA_CC['profileChanges'][0]['profile']['items'].keys()]
 
-    # filtering items based on the ACCEPTED_COSMETIC_TYPES
-    filteredItems = list(filter(lambda x: x['templateId'].split(":")[0] in ACCEPTED_COSMETIC_TYPES, PROFILE_ITEMS))
-    filteredItems_cc = list(filter(lambda x: x['templateId'].split(":")[0] in ACCEPTED_COSMETIC_TYPES, PROFILE_ITEMS_CC))
+        filteredItems = list(filter(lambda x: x['templateId'].split(":")[0] in ACCEPTED_COSMETIC_TYPES, PROFILE_ITEMS))
+        filteredItems_cc = list(filter(lambda x: x['templateId'].split(":")[0] in ACCEPTED_COSMETIC_TYPES, PROFILE_ITEMS_CC))
 
-    # cosmetic names from the objects
-    cosmeticsNames = [i['templateId'].split(":")[1].lower() for i in filteredItems]
-    builtIns = list(set([BUILTINS[i].lower() for i in BUILTINS.keys() if i.lower() in cosmeticsNames]))
-    banners = [i['templateId'].split(":")[1].lower() for i in filteredItems_cc]
+        cosmeticsNames = [i['templateId'].split(":")[1].lower() for i in filteredItems]
+        builtIns = list(set([BUILTINS[i].lower() for i in BUILTINS.keys() if i.lower() in cosmeticsNames]))
+        banners = [i['templateId'].split(":")[1].lower() for i in filteredItems_cc]
 
-    packs = list(set([PACKSDATA[i] for i in PACKSDATA.keys() if i in cosmeticsNames]))
+        packs = list(set([PACKSDATA[i] for i in PACKSDATA.keys() if i in cosmeticsNames]))
 
-    cosmeticsNames += banners
-    cosmeticsNames += builtIns
+        cosmeticsNames += banners
+        cosmeticsNames += builtIns
 
-    # ----- WORKING WITH THE PREPARED DATA -----
+        fnggDataRequest = requests.get("https://fortnite.gg/api/items.json").json()
+        fnggBundleData = requests.get("https://fortnite.gg/api/bundles.json").json()
 
-    # requesting fngg ids
-    print("\n--> Requesting data from https://fortnite.gg")
-    fnggDataRequest = requests.get("https://fortnite.gg/api/items.json").json()
-    fnggBundleData = requests.get("https://fortnite.gg/api/bundles.json").json()
+        FNGG_DATA = {i.lower(): int(fnggDataRequest[i]) for i in fnggDataRequest.keys()}
+        ATHENA_CREATION_DATE = JSONDATA['profileChanges'][0]['profile']['created']
 
-    print("\n--> Processing data")
-    FNGG_DATA = {i.lower(): int(fnggDataRequest[i]) for i in fnggDataRequest.keys()}
-    ATHENA_CREATION_DATE = JSONDATA['profileChanges'][0]['profile']['created']
+        ownedBundles = list(set([CheckBundle(i, fnggBundleData[i], cosmeticsNames, FNGG_DATA) for i in fnggBundleData.keys()]))
+        ownedBundles = list(filter(lambda x: x is not None, ownedBundles))
 
-    ownedBundles = list(set([CheckBundle(i, fnggBundleData[i], cosmeticsNames, FNGG_DATA) for i in fnggBundleData.keys()]))
-    ownedBundles = list(filter(lambda x: x is not None, ownedBundles))
+        ints = sorted([i for i in ([FNGG_DATA[it] for it in cosmeticsNames if it in FNGG_DATA] + packs + ownedBundles) if i is not None])
 
-    # getting the fngg ids of the items
-    ints = sorted([i for i in ([FNGG_DATA[it] for it in cosmeticsNames if it in FNGG_DATA] + packs + ownedBundles) if i is not None])
+        diff = list(map(lambda e: str(e[1] - ints[e[0] - 1]) if e[0] > 0 else str(e[1]), enumerate(ints)))
 
-    # ----- COMPRESSING DATA -----
+        compress = zlib.compressobj(
+            level=-1, 
+            method=zlib.DEFLATED, 
+            wbits=-9,
+            memLevel=zlib.DEF_MEM_LEVEL, 
+            strategy=zlib.Z_DEFAULT_STRATEGY
+        )
+        compressed = compress.compress(f"{ATHENA_CREATION_DATE},{','.join(diff)}".encode())
+        compressed += compress.flush()
 
-    diff = list(map(lambda e: str(e[1] - ints[e[0] - 1]) if e[0] > 0 else str(e[1]), enumerate(ints)))
+        encoded = base64.urlsafe_b64encode(compressed).decode().rstrip("=")
 
-    compress = zlib.compressobj(
-        level=-1, 
-        method=zlib.DEFLATED, 
-        wbits=-9,
-        memLevel=zlib.DEF_MEM_LEVEL, 
-        strategy=zlib.Z_DEFAULT_STRATEGY
-    )
-    compressed = compress.compress(f"{ATHENA_CREATION_DATE},{','.join(diff)}".encode())
-    compressed += compress.flush()
+        locker_url = f"https://fortnite.gg/my-locker?items={encoded}"
+        tk.Label(root, text="Your locker:", font=("Helvetica", 12)).pack(pady=5)
+        locker_link = tk.Label(root, text=locker_url, font=("Helvetica", 12), fg="blue", cursor="hand2")
+        locker_link.pack(pady=5)
+        locker_link.bind("<Button-1>", lambda _: open_link(locker_url))
 
-    # encoding the compressed data to base64
-    print("\n--> Encoding data")
-    encoded = base64.urlsafe_b64encode(compressed).decode().rstrip("=")
+        with open("locker.txt", "w", encoding="utf-8") as f:
+            f.write(locker_url)
 
-    print("\n\n--> Your locker: " + f"https://fortnite.gg/my-locker?items={encoded}")
+    tk.Button(root, text="Start Authentication", command=lambda: root.after(0, asyncio.run, authenticate())).pack(pady=20)
 
-    with open("locker.txt", "w", encoding="utf-8") as f:
-        f.write(f"https://fortnite.gg/my-locker?items={encoded}")
-
-    input()
+    root.mainloop()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    start_app()
