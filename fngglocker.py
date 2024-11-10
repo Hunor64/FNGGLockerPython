@@ -12,6 +12,7 @@ import tkinter as tk
 from tkinter import messagebox
 from colored import fg
 from colorama import Fore
+from tkinter import font
 
 zold = fg('green')
 
@@ -149,15 +150,18 @@ def start_app():
 
     root = tk.Tk()
     root.title("FNGG Locker")
+    root.geometry("300x300")
 
     tk.Label(root, text="FNGG Locker", font=("Helvetica", 16)).pack(pady=10)
+
 
     async def authenticate():
         async with aiohttp.ClientSession() as http_session:
             access_token = await getAccessToken(http_session)
             device_url, device_code = await createDeviceCode(http_session, access_token)
             tk.Label(root, text="Please log in to your account by clicking this link:", font=("Helvetica", 12)).pack(pady=5)
-            link = tk.Label(root, text=device_url, font=("Helvetica", 12), fg="blue", cursor="hand2")
+            underline_font = font.Font(family="Helvetica", size=12, underline=True)
+            link = tk.Label(root, text="Click here to log in", font=underline_font, fg="white", cursor="hand2")
             link.pack(pady=5)
             link.bind("<Button-1>", lambda _: open_link(device_url))
             auth_data = await waitForDeviceCodeComplete(http_session, device_code)
@@ -227,7 +231,7 @@ def start_app():
 
         locker_url = f"https://fortnite.gg/my-locker?items={encoded}"
         tk.Label(root, text="Your locker:", font=("Helvetica", 12)).pack(pady=5)
-        locker_link = tk.Label(root, text=locker_url, font=("Helvetica", 12), fg="blue", cursor="hand2")
+        locker_link = tk.Label(root, text="Click here to view your locker",font=underline_font, fg="white", cursor="hand2")
         locker_link.pack(pady=5)
         locker_link.bind("<Button-1>", lambda _: open_link(locker_url))
 
