@@ -4,9 +4,10 @@ Generate your locker on [Fortnite.GG](https://fortnite.gg) from your athena and 
 
 ## Usage
 
-- Download `.exe` from latest release
-- Run the executable.
-- Follow the instructions.
+- Clone the repository
+- Run ```pip install -r requirements.txt```
+- Run fngglocker.py
+- Follow the instructions
 
 ## Features
 
