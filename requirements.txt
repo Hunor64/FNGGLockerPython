@@ -1,0 +1,5 @@
+aiohttp
+colored
+colorama
+requests
+asyncio
