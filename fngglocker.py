@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import sys
 import json
@@ -5,12 +6,7 @@ import asyncio
 import zlib
 import base64
 import aiohttp
-import requests
 import webbrowser
-from colored import fg
-from colorama import Fore
-
-zold = fg('green')
 
 # setting acceptable cosmetic types
 ACCEPTED_COSMETIC_TYPES = [
@@ -140,8 +136,7 @@ async def main():
 
         # Create device code
         device_url, device_code = await createDeviceCode(http_session, access_token)
-        #webbrowser.open(device_url, new=1)
-        print(Fore.WHITE + "--> Please log in to your account by opening this link: " + Fore.LIGHTGREEN_EX + device_url)
+        print("--> Please log in to your account by opening this link: " + device_url)
 
         # Wait for device code completion
         auth_data = await waitForDeviceCodeComplete(http_session, device_code)
@@ -151,14 +146,14 @@ async def main():
     User.UserName = auth_data["displayName"]
     User.AccessToken = auth_data["access_token"]
 
-    print(Fore.WHITE + f"\n--> Username: " + Fore.LIGHTBLUE_EX + User.UserName)
+    print(f"\n--> Username: " + User.UserName)
 
     # Requesting athena
-    print(Fore.WHITE + "\n--> Requesting" + Fore.LIGHTMAGENTA_EX + " athena profile " + Fore.WHITE + "of " + Fore.LIGHTBLUE_EX + User.UserName)
+    print("\n--> Requesting athena profile of " + User.UserName)
     JSONDATA = QueryProfile(User.AccountId, "athena", User.AccessToken)
 
     # Requesting common_core
-    print(Fore.WHITE + "--> Requesting" + Fore.LIGHTMAGENTA_EX + " common_core profile " + Fore.WHITE + "of " + Fore.LIGHTBLUE_EX + User.UserName)
+    print("--> Requesting common_core profile of " + User.UserName)
     JSONDATA_CC = QueryProfile(User.AccountId, "common_core", User.AccessToken)
 
     # RMT packs
@@ -178,7 +173,7 @@ async def main():
             BUILTINS = json.load(json_file)
 
     # getting the items from profile as objects
-    print(Fore.WHITE + "\n--> Processing data")
+    print("\n--> Processing data")
     PROFILE_ITEMS = [JSONDATA['profileChanges'][0]['profile']['items'][i] for i in JSONDATA['profileChanges'][0]['profile']['items'].keys()]
     PROFILE_ITEMS_CC = [JSONDATA_CC['profileChanges'][0]['profile']['items'][i] for i in JSONDATA_CC['profileChanges'][0]['profile']['items'].keys()]
 
@@ -199,11 +194,11 @@ async def main():
     # ----- WORKING WITH THE PREPARED DATA -----
 
     # requesting fngg ids
-    print(Fore.WHITE + "\n--> Requesting data from " + Fore.LIGHTGREEN_EX + "https://fortnite.gg")
+    print("\n--> Requesting data from https://fortnite.gg")
     fnggDataRequest = requests.get("https://fortnite.gg/api/items.json").json()
     fnggBundleData = requests.get("https://fortnite.gg/api/bundles.json").json()
 
-    print(Fore.WHITE + "\n--> Processing data")
+    print("\n--> Processing data")
     FNGG_DATA = {i.lower(): int(fnggDataRequest[i]) for i in fnggDataRequest.keys()}
     ATHENA_CREATION_DATE = JSONDATA['profileChanges'][0]['profile']['created']
 
@@ -228,10 +223,10 @@ async def main():
     compressed += compress.flush()
 
     # encoding the compressed data to base64
-    print(Fore.WHITE + "\n--> Encoding data")
+    print("\n--> Encoding data")
     encoded = base64.urlsafe_b64encode(compressed).decode().rstrip("=")
 
-    print(Fore.WHITE + "\n\n--> Your locker: " + Fore.LIGHTGREEN_EX + f"https://fortnite.gg/my-locker?items={encoded}" + Fore.WHITE)
+    print("\n\n--> Your locker: " + f"https://fortnite.gg/my-locker?items={encoded}")
 
     with open("locker.txt", "w", encoding="utf-8") as f:
         f.write(f"https://fortnite.gg/my-locker?items={encoded}")

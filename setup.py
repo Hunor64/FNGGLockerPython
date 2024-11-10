@@ -1,9 +1,9 @@
 from setuptools import setup, find_packages
 
-APP=['fngglocker.py']
+APP = ['fngglocker.py']
 OPTIONS = {
-    'argv_emulation': True,
-    'packages': ['requests', 'aiohttp', 'colored', 'colorama', 'asyncio'],
+    'argv_emulation': False,
+    'packages': ['requests', 'aiohttp', 'asyncio'],
 }
 
 setup(
@@ -11,7 +11,7 @@ setup(
     options={'py2app': OPTIONS},
     setup_requires=['py2app'],
     name='FNGGLocker',
-    version='1.4.2',
+    version='2.0',
     packages=find_packages(),
     install_requires=[
         'aiohttp',
@@ -20,4 +20,9 @@ setup(
         'requests',
         'asyncio',
     ],
+    entry_points={
+        'console_scripts': [
+            'fngglocker=fngglocker:main',
+        ],
+    },
 )
