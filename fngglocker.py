@@ -156,6 +156,18 @@ def start_app():
 
 
     async def authenticate():
+        # Get all child widgets of root
+        widgets = root.winfo_children()
+        # Find the index of the authentication button
+        for idx, widget in enumerate(widgets):
+            if isinstance(widget, tk.Button) and widget["text"] == "Start Authentication":
+                start_index = idx + 1
+                break
+        else:
+            start_index = len(widgets)
+        # Destroy widgets after the button
+        for widget in widgets[start_index:]:
+            widget.destroy()
         async with aiohttp.ClientSession() as http_session:
             access_token = await getAccessToken(http_session)
             device_url, device_code = await createDeviceCode(http_session, access_token)
