@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.Linq;
 using Newtonsoft.Json.Linq;
+using ICSharpCode.SharpZipLib.Zip.Compression;
+using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
+
 
 class User
 {
@@ -95,30 +98,39 @@ class Program
             var fnggBundleData = await GetJsonAsync("https://fortnite.gg/api/bundles.json");
 
             Console.WriteLine("\n--> Processing data");
-            var fnggData = ((JObject)JObject.FromObject(fnggDataRequest)).ToObject<Dictionary<string, int>>().ToDictionary(i => i.Key.ToLower(), i => i.Value);
+            // Adjust the ToDictionary call to handle duplicate keys
+            var fnggData = ((JObject)JObject.FromObject(fnggDataRequest))
+                .ToObject<Dictionary<string, int>>()
+                .GroupBy(i => i.Key.ToLower())
+                .ToDictionary(g => g.Key, g => g.First().Value);
             var athenaCreationDate = ((JObject)jsonData["profileChanges"][0]["profile"])["created"]?.ToString();
 
             var ownedBundles = fnggBundleData.Keys.Select(i => CheckBundle(i, fnggBundleData[i], cosmeticsNames, fnggData)).Where(x => x != null).ToList();
 
+            // Parse the string IDs in 'packs' to integers
             var ints = fnggData
                 .Where(i => cosmeticsNames.Contains(i.Key))
                 .Select(i => i.Value)
-                .Concat(packs.Cast<int>())
-                .Concat(ownedBundles.Cast<int>())
+                .Concat(packs.Select(p => int.Parse(p)))
+                .Concat(ownedBundles.Where(x => x.HasValue).Select(x => x.Value))
                 .Distinct()
                 .OrderBy(i => i)
                 .ToList();
+
 
             var diff = ints.Select((e, index) => index > 0 ? (e - ints[index - 1]).ToString() : e.ToString()).ToList();
 
             var compressed = CompressData($"{athenaCreationDate},{string.Join(",", diff)}");
 
             Console.WriteLine("\n--> Encoding data");
-            var encoded = Convert.ToBase64String(compressed).TrimEnd('=');
+
+            // Use Base64UrlEncode method
+            var encoded = Base64UrlEncode(compressed).TrimEnd('=');
 
             Console.WriteLine($"\n\n--> Your locker: https://fortnite.gg/my-locker?items={encoded}");
 
             await File.WriteAllTextAsync("locker.txt", $"https://fortnite.gg/my-locker?items={encoded}");
+
         }
     }
 
@@ -182,16 +194,24 @@ class Program
         }
     }
 
+    // Update the GetPacksData method
     private static async Task<Dictionary<string, string>> GetPacksData()
     {
-        var packsDataReq = await GetJsonAsync("https://api.fecooo.hu/fngg/offers");
-        return JsonConvert.DeserializeObject<Dictionary<string, string>>(packsDataReq.ToString());
+        using (var httpClient = new HttpClient())
+        {
+            var response = await httpClient.GetStringAsync("https://api.fecooo.hu/fngg/offers");
+            return JsonConvert.DeserializeObject<Dictionary<string, string>>(response);
+        }
     }
 
+    // Update the GetBuiltIns method
     private static async Task<Dictionary<string, string>> GetBuiltIns()
     {
-        var builtinsDataReq = await GetJsonAsync("https://api.fecooo.hu/fngg/builtins");
-        return JsonConvert.DeserializeObject<Dictionary<string, string>>(builtinsDataReq.ToString());
+        using (var httpClient = new HttpClient())
+        {
+            var response = await httpClient.GetStringAsync("https://api.fecooo.hu/fngg/builtins");
+            return JsonConvert.DeserializeObject<Dictionary<string, string>>(response);
+        }
     }
 
     private static async Task<Dictionary<string, object>> GetJsonAsync(string url)
@@ -219,17 +239,27 @@ class Program
         }
     }
 
+    // Modify the CompressData method
     private static byte[] CompressData(string data)
     {
+        var inputBytes = Encoding.UTF8.GetBytes(data);
         using (var outputStream = new MemoryStream())
         {
-            using (var compressor = new System.IO.Compression.DeflateStream(outputStream, System.IO.Compression.CompressionMode.Compress))
+            var deflater = new Deflater(Deflater.DEFAULT_COMPRESSION, true); // 'true' for no ZLIB headers
+            using (var compressor = new DeflaterOutputStream(outputStream, deflater))
             {
-                var bytes = Encoding.UTF8.GetBytes(data);
-                compressor.Write(bytes, 0, bytes.Length);
+                compressor.IsStreamOwner = false;
+                compressor.Write(inputBytes, 0, inputBytes.Length);
+                compressor.Flush();
+                compressor.Finish();
             }
             return outputStream.ToArray();
         }
+    }
+    public static string Base64UrlEncode(byte[] input)
+    {
+        string base64 = Convert.ToBase64String(input).TrimEnd('=');
+        return base64.Replace('+', '-').Replace('/', '_');
     }
 }
 
