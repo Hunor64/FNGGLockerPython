@@ -48,7 +48,8 @@ class Program
         "VehicleCosmetics_DriftTrail",
         "VehicleCosmetics_Booster",
         "JunoBuildingProp",
-        "JunoBuildingSet"
+        "JunoBuildingSet",
+        "CosmeticShoes"
     };
 
     static async Task Main(string[] args)
@@ -128,6 +129,8 @@ class Program
             var encoded = Base64UrlEncode(compressed).TrimEnd('=');
 
             Console.WriteLine($"\n\n--> Your locker: https://fortnite.gg/my-locker?items={encoded}");
+
+            Console.ReadLine();
 
             await File.WriteAllTextAsync("locker.txt", $"https://fortnite.gg/my-locker?items={encoded}");
 
