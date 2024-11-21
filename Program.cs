@@ -1,15 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net.Http;
+﻿using ICSharpCode.SharpZipLib.Zip.Compression;
+using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System.Net.Http.Headers;
 using System.Text;
-using System.Threading.Tasks;
-using Newtonsoft.Json;
-using System.Linq;
-using Newtonsoft.Json.Linq;
-using ICSharpCode.SharpZipLib.Zip.Compression;
-using ICSharpCode.SharpZipLib.Zip.Compression.Streams;
 
 
 class User
@@ -85,15 +79,21 @@ class Program
             var filteredItems = profileItems.Where(x => ACCEPTED_COSMETIC_TYPES.Contains(x["templateId"].ToString().Split(':')[0])).ToList();
             var filteredItemsCc = profileItemsCc.Where(x => ACCEPTED_COSMETIC_TYPES.Contains(x["templateId"].ToString().Split(':')[0])).ToList();
 
-            var cosmeticsNames = filteredItems.Select(i => i["templateId"].ToString().Split(':')[1].ToLower()).ToList();
-            var builtInsFiltered = builtIns.Keys.Where(i => cosmeticsNames.Contains(i.ToLower())).Distinct().ToList();
-            var banners = filteredItemsCc.Select(i => i["templateId"].ToString().Split(':')[1].ToLower()).ToList();
+// Get the list of cosmetic names (IDs) from the user's owned items
+var cosmeticsNames = filteredItems.Select(i => i["templateId"].ToString().Split(':')[1].ToLower()).ToList();
 
-            var packs = packsData.Keys.Where(i => cosmeticsNames.Contains(i)).Select(i => packsData[i]).Distinct().ToList();
+// Get the list of banners from common_core profile items
+var banners = filteredItemsCc.Select(i => i["templateId"].ToString().Split(':')[1].ToLower()).ToList();
 
+// Find the built-in emote IDs associated with the skins you own
+var builtInEmoteIds = builtIns
+    .Where(b => cosmeticsNames.Contains(b.Key.ToLower()))
+    .Select(b => b.Value.ToLower())
+    .ToList();
+
+            // Add banners and built-in emotes to the list of cosmetic names
             cosmeticsNames.AddRange(banners);
-            cosmeticsNames.AddRange(builtInsFiltered);
-
+            cosmeticsNames.AddRange(builtInEmoteIds);
             Console.WriteLine("\n--> Requesting data from https://fortnite.gg");
             var fnggDataRequest = await GetJsonAsync("https://fortnite.gg/api/items.json");
             var fnggBundleData = await GetJsonAsync("https://fortnite.gg/api/bundles.json");
@@ -101,13 +101,21 @@ class Program
             Console.WriteLine("\n--> Processing data");
             // Adjust the ToDictionary call to handle duplicate keys
             var fnggData = ((JObject)JObject.FromObject(fnggDataRequest))
-                .ToObject<Dictionary<string, int>>()
-                .GroupBy(i => i.Key.ToLower())
-                .ToDictionary(g => g.Key, g => g.First().Value);
+    .ToObject<Dictionary<string, int>>()
+    .GroupBy(i => i.Key.ToLower())
+    .ToDictionary(g => g.Key, g => g.First().Value);
             var athenaCreationDate = ((JObject)jsonData["profileChanges"][0]["profile"])["created"]?.ToString();
 
-            var ownedBundles = fnggBundleData.Keys.Select(i => CheckBundle(i, fnggBundleData[i], cosmeticsNames, fnggData)).Where(x => x != null).ToList();
-
+            var ownedBundles = fnggBundleData.Keys
+                .Select(i => CheckBundle(i, fnggBundleData[i], cosmeticsNames, fnggData))
+                .Where(x => x != null)
+                .ToList();
+            // **Define 'packs' here**
+            var packs = packsData.Keys
+                .Where(i => cosmeticsNames.Contains(i))
+                .Select(i => packsData[i])
+                .Distinct()
+                .ToList();
             // Parse the string IDs in 'packs' to integers
             var ints = fnggData
                 .Where(i => cosmeticsNames.Contains(i.Key))
