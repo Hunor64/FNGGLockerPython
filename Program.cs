@@ -79,17 +79,17 @@ class Program
             var filteredItems = profileItems.Where(x => ACCEPTED_COSMETIC_TYPES.Contains(x["templateId"].ToString().Split(':')[0])).ToList();
             var filteredItemsCc = profileItemsCc.Where(x => ACCEPTED_COSMETIC_TYPES.Contains(x["templateId"].ToString().Split(':')[0])).ToList();
 
-// Get the list of cosmetic names (IDs) from the user's owned items
-var cosmeticsNames = filteredItems.Select(i => i["templateId"].ToString().Split(':')[1].ToLower()).ToList();
+            // Get the list of cosmetic names (IDs) from the user's owned items
+            var cosmeticsNames = filteredItems.Select(i => i["templateId"].ToString().Split(':')[1].ToLower()).ToList();
 
-// Get the list of banners from common_core profile items
-var banners = filteredItemsCc.Select(i => i["templateId"].ToString().Split(':')[1].ToLower()).ToList();
+            // Get the list of banners from common_core profile items
+            var banners = filteredItemsCc.Select(i => i["templateId"].ToString().Split(':')[1].ToLower()).ToList();
 
-// Find the built-in emote IDs associated with the skins you own
-var builtInEmoteIds = builtIns
-    .Where(b => cosmeticsNames.Contains(b.Key.ToLower()))
-    .Select(b => b.Value.ToLower())
-    .ToList();
+            // Find the built-in emote IDs associated with the skins you own
+            var builtInEmoteIds = builtIns
+                .Where(b => cosmeticsNames.Contains(b.Key.ToLower()))
+                .Select(b => b.Value.ToLower())
+                .ToList();
 
             // Add banners and built-in emotes to the list of cosmetic names
             cosmeticsNames.AddRange(banners);
@@ -101,9 +101,10 @@ var builtInEmoteIds = builtIns
             Console.WriteLine("\n--> Processing data");
             // Adjust the ToDictionary call to handle duplicate keys
             var fnggData = ((JObject)JObject.FromObject(fnggDataRequest))
-    .ToObject<Dictionary<string, int>>()
-    .GroupBy(i => i.Key.ToLower())
-    .ToDictionary(g => g.Key, g => g.First().Value);
+                .ToObject<Dictionary<string, int>>()
+                .GroupBy(i => i.Key.ToLower())
+                .ToDictionary(g => g.Key, g => g.First().Value);
+
             var athenaCreationDate = ((JObject)jsonData["profileChanges"][0]["profile"])["created"]?.ToString();
 
             var ownedBundles = fnggBundleData.Keys
