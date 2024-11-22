@@ -18,32 +18,12 @@ class Program
     private static readonly string SWITCH_TOKEN = "OThmN2U0MmMyZTNhNGY4NmE3NGViNDNmYmI0MWVkMzk6MGEyNDQ5YTItMDAxYS00NTFlLWFmZWMtM2U4MTI5MDFjNGQ3";
     private static readonly List<string> ACCEPTED_COSMETIC_TYPES = new List<string>
     {
-        "AthenaCharacter",
-        "AthenaDance",
-        "AthenaPickaxe",
-        "AthenaBackpack",
-        "AthenaGlider",
-        "AthenaItemWrap",
-        "AthenaLoadingScreen",
-        "AthenaMusicPack",
-        "AthenaSkyDiveContrail",
-        "BannerToken",
-        "HomebaseBannerIcon",
-        "SparksSong",
-        "SparksGuitar",
-        "SparksBass",
-        "SparksDrums",
-        "SparksKeyboard",
-        "SparksMicrophone",
-        "SparksAura",
-        "VehicleCosmetics_Body",
-        "VehicleCosmetics_Skin",
-        "VehicleCosmetics_Wheel",
-        "VehicleCosmetics_DriftTrail",
-        "VehicleCosmetics_Booster",
-        "JunoBuildingProp",
-        "JunoBuildingSet",
-        "CosmeticShoes"
+        "AthenaCharacter", "AthenaDance", "AthenaPickaxe", "AthenaBackpack", "AthenaGlider",
+        "AthenaItemWrap", "AthenaLoadingScreen", "AthenaMusicPack", "AthenaSkyDiveContrail",
+        "BannerToken", "HomebaseBannerIcon", "SparksSong", "SparksGuitar", "SparksBass",
+        "SparksDrums", "SparksKeyboard", "SparksMicrophone", "SparksAura", "VehicleCosmetics_Body",
+        "VehicleCosmetics_Skin", "VehicleCosmetics_Wheel", "VehicleCosmetics_DriftTrail",
+        "VehicleCosmetics_Booster", "JunoBuildingProp", "JunoBuildingSet", "CosmeticShoes"
     };
 
     static async Task Main(string[] args)
@@ -57,14 +37,12 @@ class Program
         {
             string accessToken = await GetAccessToken(httpClient);
             var (deviceUrl, deviceCode) = await CreateDeviceCode(httpClient, accessToken);
-            Console.WriteLine("--> Please log in to your account by opening this link: " + deviceUrl);
+            Console.WriteLine("Please log in to your account by opening this link: " + deviceUrl);
             var authData = await WaitForDeviceCodeComplete(httpClient, deviceCode);
 
-            User.AccountId = authData["account_id"].ToString();
-            User.UserName = authData["displayName"].ToString();
-            User.AccessToken = authData["access_token"].ToString();
+            SetUserDetails(authData);
 
-            Console.WriteLine($"\n--> Username: {User.UserName}");
+            Console.WriteLine($"\nUsername: {User.UserName}");
 
             var jsonData = QueryProfile(User.AccountId, "athena", User.AccessToken);
             var jsonDataCc = QueryProfile(User.AccountId, "common_core", User.AccessToken);
@@ -72,78 +50,123 @@ class Program
             var packsData = await GetPacksData();
             var builtIns = await GetBuiltIns();
 
-            Console.WriteLine("\n--> Processing data");
-            var profileItems = ((JObject)jsonData["profileChanges"][0]["profile"]["items"]).ToObject<Dictionary<string, JObject>>().Values.ToList();
-            var profileItemsCc = ((JObject)jsonDataCc["profileChanges"][0]["profile"]["items"]).ToObject<Dictionary<string, JObject>>().Values.ToList();
+            Console.WriteLine("\nProcessing data");
+            var profileItems = GetProfileItems(jsonData);
+            var profileItemsCc = GetProfileItems(jsonDataCc);
 
-            var filteredItems = profileItems.Where(x => ACCEPTED_COSMETIC_TYPES.Contains(x["templateId"].ToString().Split(':')[0])).ToList();
-            var filteredItemsCc = profileItemsCc.Where(x => ACCEPTED_COSMETIC_TYPES.Contains(x["templateId"].ToString().Split(':')[0])).ToList();
+            var filteredItems = FilterItems(profileItems);
+            var filteredItemsCc = FilterItems(profileItemsCc);
 
-            // Get the list of cosmetic names (IDs) from the user's owned items
-            var cosmeticsNames = filteredItems.Select(i => i["templateId"].ToString().Split(':')[1].ToLower()).ToList();
+            var cosmeticsNames = GetCosmeticsNames(filteredItems);
+            var banners = GetCosmeticsNames(filteredItemsCc);
 
-            // Get the list of banners from common_core profile items
-            var banners = filteredItemsCc.Select(i => i["templateId"].ToString().Split(':')[1].ToLower()).ToList();
+            var builtInEmoteIds = GetBuiltInEmoteIds(builtIns, cosmeticsNames);
 
-            // Find the built-in emote IDs associated with the skins you own
-            var builtInEmoteIds = builtIns
-                .Where(b => cosmeticsNames.Contains(b.Key.ToLower()))
-                .Select(b => b.Value.ToLower())
-                .ToList();
-
-            // Add banners and built-in emotes to the list of cosmetic names
             cosmeticsNames.AddRange(banners);
             cosmeticsNames.AddRange(builtInEmoteIds);
-            Console.WriteLine("\n--> Requesting data from https://fortnite.gg");
+
+            Console.WriteLine("\nRequesting data from https://fortnite.gg");
             var fnggDataRequest = await GetJsonAsync("https://fortnite.gg/api/items.json");
             var fnggBundleData = await GetJsonAsync("https://fortnite.gg/api/bundles.json");
 
-            Console.WriteLine("\n--> Processing data");
-            // Adjust the ToDictionary call to handle duplicate keys
-            var fnggData = ((JObject)JObject.FromObject(fnggDataRequest))
-                .ToObject<Dictionary<string, int>>()
-                .GroupBy(i => i.Key.ToLower())
-                .ToDictionary(g => g.Key, g => g.First().Value);
+            Console.WriteLine("\nProcessing data");
+            var fnggData = ProcessFnggData(fnggDataRequest);
 
-            var athenaCreationDate = ((JObject)jsonData["profileChanges"][0]["profile"])["created"]?.ToString();
+            var athenaCreationDate = GetAthenaCreationDate(jsonData);
 
-            var ownedBundles = fnggBundleData.Keys
-                .Select(i => CheckBundle(i, fnggBundleData[i], cosmeticsNames, fnggData))
-                .Where(x => x != null)
-                .ToList();
-            // **Define 'packs' here**
-            var packs = packsData.Keys
-                .Where(i => cosmeticsNames.Contains(i))
-                .Select(i => packsData[i])
-                .Distinct()
-                .ToList();
-            // Parse the string IDs in 'packs' to integers
-            var ints = fnggData
-                .Where(i => cosmeticsNames.Contains(i.Key))
-                .Select(i => i.Value)
-                .Concat(packs.Select(p => int.Parse(p)))
-                .Concat(ownedBundles.Where(x => x.HasValue).Select(x => x.Value))
-                .Distinct()
-                .OrderBy(i => i)
-                .ToList();
+            var ownedBundles = GetOwnedBundles(fnggBundleData, cosmeticsNames, fnggData);
+            var packs = GetPacks(packsData, cosmeticsNames);
 
+            var ints = GetInts(fnggData, cosmeticsNames, packs, ownedBundles);
 
-            var diff = ints.Select((e, index) => index > 0 ? (e - ints[index - 1]).ToString() : e.ToString()).ToList();
+            var diff = GetDiff(ints);
 
             var compressed = CompressData($"{athenaCreationDate},{string.Join(",", diff)}");
 
-            Console.WriteLine("\n--> Encoding data");
+            Console.WriteLine("\nEncoding data");
 
-            // Use Base64UrlEncode method
             var encoded = Base64UrlEncode(compressed).TrimEnd('=');
 
-            Console.WriteLine($"\n\n--> Your locker: https://fortnite.gg/my-locker?items={encoded}");
+            Console.WriteLine($"\n\nYour locker: https://fortnite.gg/my-locker?items={encoded}");
 
             Console.ReadLine();
 
-            await File.WriteAllTextAsync("locker.txt", $"https://fortnite.gg/my-locker?items={encoded}");
-
+            //await File.WriteAllTextAsync("locker.txt", $"https://fortnite.gg/my-locker?items={encoded}");
         }
+    }
+
+    private static void SetUserDetails(Dictionary<string, object> authData)
+    {
+        User.AccountId = authData["account_id"].ToString();
+        User.UserName = authData["displayName"].ToString();
+        User.AccessToken = authData["access_token"].ToString();
+    }
+
+    private static List<JObject> GetProfileItems(JObject jsonData)
+    {
+        return ((JObject)jsonData["profileChanges"][0]["profile"]["items"]).ToObject<Dictionary<string, JObject>>().Values.ToList();
+    }
+
+    private static List<JObject> FilterItems(List<JObject> items)
+    {
+        return items.Where(x => ACCEPTED_COSMETIC_TYPES.Contains(x["templateId"].ToString().Split(':')[0])).ToList();
+    }
+
+    private static List<string> GetCosmeticsNames(List<JObject> items)
+    {
+        return items.Select(i => i["templateId"].ToString().Split(':')[1].ToLower()).ToList();
+    }
+
+    private static List<string> GetBuiltInEmoteIds(Dictionary<string, string> builtIns, List<string> cosmeticsNames)
+    {
+        return builtIns.Where(b => cosmeticsNames.Contains(b.Key.ToLower())).Select(b => b.Value.ToLower()).ToList();
+    }
+
+    private static Dictionary<string, int> ProcessFnggData(Dictionary<string, object> fnggDataRequest)
+    {
+        return ((JObject)JObject.FromObject(fnggDataRequest))
+            .ToObject<Dictionary<string, int>>()
+            .GroupBy(i => i.Key.ToLower())
+            .ToDictionary(g => g.Key, g => g.First().Value);
+    }
+
+    private static string GetAthenaCreationDate(JObject jsonData)
+    {
+        return ((JObject)jsonData["profileChanges"][0]["profile"])["created"]?.ToString();
+    }
+
+    private static List<int?> GetOwnedBundles(Dictionary<string, object> fnggBundleData, List<string> cosmeticsNames, Dictionary<string, int> fnggData)
+    {
+        return fnggBundleData.Keys
+            .Select(i => CheckBundle(i, fnggBundleData[i], cosmeticsNames, fnggData))
+            .Where(x => x != null)
+            .ToList();
+    }
+
+    private static List<string> GetPacks(Dictionary<string, string> packsData, List<string> cosmeticsNames)
+    {
+        return packsData.Keys
+            .Where(i => cosmeticsNames.Contains(i))
+            .Select(i => packsData[i])
+            .Distinct()
+            .ToList();
+    }
+
+    private static List<int> GetInts(Dictionary<string, int> fnggData, List<string> cosmeticsNames, List<string> packs, List<int?> ownedBundles)
+    {
+        return fnggData
+            .Where(i => cosmeticsNames.Contains(i.Key))
+            .Select(i => i.Value)
+            .Concat(packs.Select(p => int.Parse(p)))
+            .Concat(ownedBundles.Where(x => x.HasValue).Select(x => x.Value))
+            .Distinct()
+            .OrderBy(i => i)
+            .ToList();
+    }
+
+    private static List<string> GetDiff(List<int> ints)
+    {
+        return ints.Select((e, index) => index > 0 ? (e - ints[index - 1]).ToString() : e.ToString()).ToList();
     }
 
     private static async Task<string> GetAccessToken(HttpClient httpClient)
@@ -206,7 +229,6 @@ class Program
         }
     }
 
-    // Update the GetPacksData method
     private static async Task<Dictionary<string, string>> GetPacksData()
     {
         using (var httpClient = new HttpClient())
@@ -216,7 +238,6 @@ class Program
         }
     }
 
-    // Update the GetBuiltIns method
     private static async Task<Dictionary<string, string>> GetBuiltIns()
     {
         using (var httpClient = new HttpClient())
@@ -251,13 +272,12 @@ class Program
         }
     }
 
-    // Modify the CompressData method
     private static byte[] CompressData(string data)
     {
         var inputBytes = Encoding.UTF8.GetBytes(data);
         using (var outputStream = new MemoryStream())
         {
-            var deflater = new Deflater(Deflater.DEFAULT_COMPRESSION, true); // 'true' for no ZLIB headers
+            var deflater = new Deflater(Deflater.DEFAULT_COMPRESSION, true);
             using (var compressor = new DeflaterOutputStream(outputStream, deflater))
             {
                 compressor.IsStreamOwner = false;
@@ -268,6 +288,7 @@ class Program
             return outputStream.ToArray();
         }
     }
+
     public static string Base64UrlEncode(byte[] input)
     {
         string base64 = Convert.ToBase64String(input).TrimEnd('=');
